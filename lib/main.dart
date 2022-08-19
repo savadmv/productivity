@@ -28,5 +28,6 @@ void main() async {
 
 registerAdapters() {
   // Register Adapter
+
   Hive.registerAdapter(UserAdapter());
 }
