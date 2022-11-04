@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:firebase_auth_platform_interface/firebase_auth_platform_interface.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -75,14 +76,23 @@ class AuthenticationRepository {
   /// {@macro authentication_repository}
   AuthenticationRepository({
     firebase_auth.FirebaseAuth? firebaseAuth,
-    required this.box,
+    FirebaseFirestore? db,
+    Box<User>? userBox,
+    Box? box,
     GoogleSignIn? googleSignIn,
   })  : _firebaseAuth = firebaseAuth ?? firebase_auth.FirebaseAuth.instance,
-        _googleSignIn = googleSignIn ?? GoogleSignIn(clientId: DefaultFirebaseOptions.currentPlatform.iosClientId);
+        _box = box,
+        _userBox = userBox,
+        _db = db ?? FirebaseFirestore.instance,
+        _googleSignIn = googleSignIn ??
+            GoogleSignIn(
+                clientId: DefaultFirebaseOptions.currentPlatform.iosClientId);
 
   final firebase_auth.FirebaseAuth _firebaseAuth;
   final GoogleSignIn _googleSignIn;
-  final Box<User> box;
+  final FirebaseFirestore _db;
+  final Box<User>? _userBox;
+  final Box? _box;
 
   /// Whether or not the current environment is web
   /// Should only be overriden for testing purposes. Otherwise,
@@ -102,7 +112,7 @@ class AuthenticationRepository {
   Stream<User> get user {
     return _firebaseAuth.authStateChanges().map((firebaseUser) {
       final user = firebaseUser == null ? User.empty : firebaseUser.toUser;
-      box.put('user', user);
+      _userBox!.put('user', user);
       return user;
     });
   }
@@ -110,7 +120,7 @@ class AuthenticationRepository {
   /// Returns the current cached user.
   /// Defaults to [User.empty] if there is no cached user.
   User? get currentUser {
-    return box.get('user');
+    return _userBox!.get('user');
   }
 
   /// Starts the Sign In with Google Flow.
@@ -134,13 +144,11 @@ class AuthenticationRepository {
         );
       }
 
-      await _firebaseAuth.signInWithCredential(credential);
+      var cred = await _firebaseAuth.signInWithCredential(credential);
+      createUser(cred.additionalUserInfo?.isNewUser);
     } on FirebaseAuthException catch (e) {
-
       throw LogInWithGoogleFailure.fromCode(e.code);
-
-    }  on Exception catch   (e) {
-    print("$e");
+    } on Exception catch (e) {
       throw const LogInWithGoogleFailure();
     }
   }
@@ -158,6 +166,26 @@ class AuthenticationRepository {
     } catch (_) {
       throw LogOutFailure();
     }
+  }
+
+  Future<void> createUser(bool? isNewUser) async {
+    if (isNewUser!) {
+      final docRef = _db.collection("users").withConverter(
+            fromFirestore: User.fromFirestore,
+            toFirestore: (User user, options) => user.toFirestore(),
+          );
+
+      var ref = await docRef.add(currentUser!);
+      await saveId(ref.id);
+    }
+  }
+
+  Future<void> saveId(String id) async {
+    _box!.put('id', id);
+  }
+
+  String get id {
+    return _box!.get('id');
   }
 }
 

@@ -1,5 +1,7 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:equatable/equatable.dart';
 import 'package:hive/hive.dart';
+
 part '../adapters/user.g.dart';
 
 /// {@template user}
@@ -7,7 +9,7 @@ part '../adapters/user.g.dart';
 ///
 /// [User.empty] represents an unauthenticated user.
 /// {@endtemplate}
- @HiveType(typeId: 1)
+@HiveType(typeId: 1)
 class User extends Equatable {
   /// {@macro user}
   const User({
@@ -44,4 +46,23 @@ class User extends Equatable {
 
   @override
   List<Object?> get props => [email, id, name, photo];
+
+  factory User.fromFirestore(DocumentSnapshot<Map<String, dynamic>> snapshot,
+      SnapshotOptions? options) {
+    final data = snapshot.data();
+    return User(
+        id: data?['id'],
+        email: data?['email'],
+        name: data?['name'],
+        photo: data?['photo']);
+  }
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      "id": id,
+      if (email != null) 'email': email,
+      if (name != null) 'name': name,
+      if (photo != null) 'photo': photo
+    };
+  }
 }

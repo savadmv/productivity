@@ -47,6 +47,7 @@ dependencies:
   flow_builder: ^0.0.9
   google_fonts: ^3.0.1
   hive_flutter: ^1.1.0
+  cloud_firestore: ^3.4.5
 
 dev_dependencies:
   flutter_test:
