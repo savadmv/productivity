@@ -185,7 +185,7 @@ class AuthenticationRepository {
   }
 
   String get id {
-    return _box!.get('id');
+    return _box!.get('id')??currentUser!.id;
   }
 }
 
